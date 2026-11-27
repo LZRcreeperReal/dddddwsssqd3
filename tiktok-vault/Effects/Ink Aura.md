@@ -26,11 +26,15 @@ python3 scripts/aura.py --bg clip.mp4 --sticker cut.png --out out.mp4 --colors "
 | `--chaos` | tendril / warp strength | 1.0 |
 | `--boil` | hold frames (1 = smooth, 2 = capcut choppy) | 2 |
 | `--bolts` | lightning amount (0 = off) | 1.0 |
-| `--glow` | glow strength | 0.8 |
+| `--glow` | glow strength | 0.5 |
+| `--cuts` | how much ink gets randomly cut away (0–0.9) | 0.4 |
+| `--bleed` | soft fibrous ink-bleed edges (0 = hard) | 1.0 |
 | `--start` / `--end` | when the aura is on (sec) | whole clip |
 | `--hide-sticker` | draw aura only | off |
 
 ## Notes / user feedback
+- v2: **NO outline.** Colors are random patches, not rings (rings make an outline at the edge). Edge is soft and bleeds. Random chunks get cut out everywhere, even over the subject. User liked this.
+- Target look = ink bleed: organic, soft and patchy, never a clean rim.
 - User wants colors **fully customizable**, never locked to one look. Always expose `--colors`.
 - v1: tested on the bike cutout. Rejected looks: big blurry blob, and a uniform pink rim (looked like a sticker outline). Keep it tight to the shape and patchy.
 - rembg cutouts can grab extra stuff (it grabbed part of the cart). Check the cutout before running.

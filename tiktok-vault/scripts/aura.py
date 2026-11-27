@@ -89,7 +89,9 @@ def main():
     ap.add_argument("--chaos", type=float, default=1.0, help="tendril/warp strength")
     ap.add_argument("--boil", type=int, default=2, help="hold each aura frame N frames (2 = choppy capcut feel)")
     ap.add_argument("--bolts", type=float, default=1.0, help="lightning amount, 0 = off")
-    ap.add_argument("--glow", type=float, default=0.8)
+    ap.add_argument("--glow", type=float, default=0.5)
+    ap.add_argument("--cuts", type=float, default=0.4, help="fraction of ink randomly cut away (0-0.9)")
+    ap.add_argument("--bleed", type=float, default=1.0, help="soft fibrous ink-bleed edges (0 = hard)")
     ap.add_argument("--opacity", type=float, default=1.0)
     ap.add_argument("--start", type=float, default=0, help="aura on at sec")
     ap.add_argument("--end", type=float, default=1e9, help="aura off at sec")
@@ -109,7 +111,9 @@ def main():
 
     rng = np.random.default_rng(a.seed)
     n_warp_x, n_warp_y, n_ink = (Noise(sh, sw, rng) for _ in range(3))
-    n_hole = Noise(sh, sw, rng, scales=(8, 16, 32))
+    n_hole = Noise(sh, sw, rng, scales=(10, 20, 40, 80))
+    n_col = Noise(sh, sw, rng, scales=(12, 24, 48))
+    n_fine = Noise(sh, sw, rng, scales=(2, 4, 8))
     n_bolt = Noise(sh, sw, rng, scales=(3, 6, 12, 40))
     pal = PALETTES[a.palette]
     bands = np.array(build_bands(a.colors) if a.colors else pal["bands"], np.float32) / 255
@@ -138,21 +142,34 @@ def main():
             grown = cv2.dilate(mw, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
             field = cv2.GaussianBlur(grown, (0, 0), max(1, spread * .35))
             ink = n_ink.get()
-            v = field * (0.3 + 1.2 * ink)
-            holes = n_hole.get()  # punches gaps so it's patchy, not a solid blob
-            cov = ((v > th[0]) & (holes > 0.42 - 0.25 * m)).astype(np.float32)
-            idx = np.clip(np.digitize(v, th) - 1, 0, len(bands) - 1)
+            fine = (n_fine.get() - .5) * 0.35 * a.bleed  # fibrous ink-bleed edge
+            v = field * (0.3 + 1.2 * ink) + fine * (field > 0.05)
+            lo = th[0]
+            cov = np.clip((v - lo) / (0.06 + 0.1 * a.bleed), 0, 1)  # soft bleed edge, no hard rim
+            # random cuts: big irregular chunks removed anywhere (incl. over the subject)
+            holes = n_hole.get()
+            inside = cov > 0
+            if a.cuts > 0 and inside.any():
+                ht = np.quantile(holes[inside], min(a.cuts, 0.95))
+                cov *= np.clip((holes - ht) / 0.03, 0, 1)
+            # colors = random patches (not rings), so no outline forms at the edge
+            cn = n_col.get()
+            if inside.any():
+                q = np.quantile(cn[inside], np.linspace(0, 1, len(bands) + 1)[1:-1])
+                idx = np.digitize(cn, q)
+            else:
+                idx = np.zeros(cn.shape, int)
             col = bands[idx]
             # lightning: jagged iso-lines of high-freq noise, only inside the ink
             line = np.zeros_like(v)
             if a.bolts > 0:
                 bn = n_bolt.get()
                 line = np.clip(1 - np.abs(bn - 0.5) / (0.012 * a.bolts), 0, 1)
-                line *= (v > th[0] * .9) * (holes > 0.3)
+                line *= np.clip(cov * 2, 0, 1)
             col = col * (1 - line[..., None]) + bolt_c * line[..., None]
             cov = np.maximum(cov, line)
             # glow
-            g = cv2.GaussianBlur(col * cov[..., None], (0, 0), 9 * sc) * a.glow * 1.6
+            g = cv2.GaussianBlur(col * cov[..., None], (0, 0), 6 * sc) * a.glow * 1.4
             aura_rgb = cv2.resize(col, (W, H), interpolation=cv2.INTER_NEAREST)
             aura_a = cv2.resize(cov, (W, H), interpolation=cv2.INTER_LINEAR)[..., None] * a.opacity
             aura_g = cv2.resize(g, (W, H), interpolation=cv2.INTER_LINEAR) * a.opacity

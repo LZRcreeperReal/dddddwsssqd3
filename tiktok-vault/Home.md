@@ -3,6 +3,7 @@ Claude's memory for TikTok edits. Read this first before any edit.
 
 - [[Editing Style]] — how edits should look/feel
 - [[Effects Index]] — every effect we've built
+- [[Recurring Requests]] — things the user keeps asking for or hates
 - [[Effect Template]] — copy this to add a new effect
 - `Assets/` — overlays, SFX, LUTs, PNGs
 - `scripts/` — python effect scripts (aura.py)
