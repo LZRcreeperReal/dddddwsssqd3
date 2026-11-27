@@ -12,14 +12,16 @@
 ffmpeg -ss 2.0 -i clip.mov -frames:v 1 src.png
 python3 -c "from rembg import remove; from PIL import Image; remove(Image.open('src.png')).save('cut.png')"
 # 2. run the aura
-python3 scripts/aura.py --bg clip.mp4 --sticker cut.png --out out.mp4 --palette purple
+python3 scripts/aura.py --bg clip.mp4 --sticker cut.png --out out.mp4 --colors "#7a00ff,#ff0055" --bolt-color "#ffffff"
 ```
 `--sticker` can also be a video with alpha (ProRes 4444 .mov / webm) to track a moving cutout.
 
 ## Knobs
 | flag | does | default |
 |---|---|---|
-| `--palette` | purple, mix (purple+orange), fire, toxic, ice | purple |
+| `--colors` | **any hex colors**, outer→inner, any amount. One color = auto shades | (preset) |
+| `--bolt-color` | lightning hex color | white-ish |
+| `--palette` | quick presets if no `--colors`: purple, mix, fire, toxic, ice | purple |
 | `--spread` | how far ink reaches past the shape | 18 |
 | `--chaos` | tendril / warp strength | 1.0 |
 | `--boil` | hold frames (1 = smooth, 2 = capcut choppy) | 2 |
@@ -29,5 +31,6 @@ python3 scripts/aura.py --bg clip.mp4 --sticker cut.png --out out.mp4 --palette 
 | `--hide-sticker` | draw aura only | off |
 
 ## Notes / user feedback
+- User wants colors **fully customizable**, never locked to one look. Always expose `--colors`.
 - v1: tested on the bike cutout. Rejected looks: big blurry blob, and a uniform pink rim (looked like a sticker outline). Keep it tight to the shape and patchy.
 - rembg cutouts can grab extra stuff (it grabbed part of the cart). Check the cutout before running.

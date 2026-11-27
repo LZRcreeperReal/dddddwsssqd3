@@ -20,6 +20,21 @@ PALETTES = {  # outer -> inner bands (RGB), plus lightning color
 }
 
 
+def hex2rgb(h):
+    h = h.strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def build_bands(spec):
+    cols = [hex2rgb(c) for c in spec.replace(" ", "").split(",") if c]
+    if len(cols) == 1:  # one color -> deep edge, base, lighter, near-white core
+        c = np.array(cols[0], np.float32)
+        cols = [tuple(c * .5), tuple(c * .8), tuple(c), tuple(c + (255 - c) * .45)]
+    return cols
+
+
 def probe(path):
     out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
                           "stream=width,height,r_frame_rate:format=duration", "-of", "json", path],
@@ -67,7 +82,9 @@ def main():
     ap.add_argument("--bg", required=True)
     ap.add_argument("--sticker", required=True, help="transparent png or alpha video")
     ap.add_argument("--out", required=True)
-    ap.add_argument("--palette", default="purple", choices=PALETTES)
+    ap.add_argument("--palette", default="purple", choices=PALETTES, help="preset, ignored if --colors set")
+    ap.add_argument("--colors", help="any hex colors, outer->inner, e.g. '#ff0055,#7a00ff' or one color for auto shades")
+    ap.add_argument("--bolt-color", help="lightning hex color, e.g. '#ffffff'")
     ap.add_argument("--spread", type=float, default=18, help="how far ink reaches past the shape (px @1080w)")
     ap.add_argument("--chaos", type=float, default=1.0, help="tendril/warp strength")
     ap.add_argument("--boil", type=int, default=2, help="hold each aura frame N frames (2 = choppy capcut feel)")
@@ -95,8 +112,9 @@ def main():
     n_hole = Noise(sh, sw, rng, scales=(8, 16, 32))
     n_bolt = Noise(sh, sw, rng, scales=(3, 6, 12, 40))
     pal = PALETTES[a.palette]
-    bands = np.array(pal["bands"], np.float32) / 255
-    bolt_c = np.array(pal["bolt"], np.float32) / 255
+    bands = np.array(build_bands(a.colors) if a.colors else pal["bands"], np.float32) / 255
+    bolt_c = np.array(hex2rgb(a.bolt_color) if a.bolt_color else pal["bolt"], np.float32) / 255
+    th = list(np.linspace(0.42, 0.95, len(bands)))
     gx, gy = np.meshgrid(np.arange(sw, dtype=np.float32), np.arange(sh, dtype=np.float32))
     spread = a.spread * sc
     warp = 38 * sc * a.chaos
@@ -121,7 +139,6 @@ def main():
             field = cv2.GaussianBlur(grown, (0, 0), max(1, spread * .35))
             ink = n_ink.get()
             v = field * (0.3 + 1.2 * ink)
-            th = [0.42, 0.52, 0.74, 0.95]
             holes = n_hole.get()  # punches gaps so it's patchy, not a solid blob
             cov = ((v > th[0]) & (holes > 0.42 - 0.25 * m)).astype(np.float32)
             idx = np.clip(np.digitize(v, th) - 1, 0, len(bands) - 1)

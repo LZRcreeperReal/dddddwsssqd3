@@ -6,3 +6,4 @@ _Fill in as we learn what the user likes._
 - Captions: TBD (font, color, word-by-word?)
 - Likes:
 - Dislikes:
+- Effects must be customizable (colors etc.), not hardcoded to one look
