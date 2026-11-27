@@ -22,7 +22,8 @@ python3 scripts/aura.py --bg clip.mp4 --sticker cut.png --out out.mp4 --color "#
 | `--spread` | how far the ink bleeds out | 1.0 |
 | `--flow` | how much it swirls/curls | 1.0 |
 | `--bleed` | fuzzy fibrous edges (0 = clean) | 1.0 |
-| `--cuts` | fraction randomly cut away | 0.15 |
+| `--cuts` | random cuts everywhere | 0.15 |
+| `--center-cuts` | extra cuts in the middle (near the subject) | 0.55 |
 | `--glow` | glow strength | 0.6 |
 | `--boil` | hold frames (2 = choppy) | 1 |
 | `--bolts` | lightning, **off by default** (user doesn't want it) | 0 |
@@ -37,3 +38,4 @@ Ink density field: each frame it's advected by a smooth noise flow plus an outwa
 - v2: random color patches + random cuts. User: "doesn't look right."
 - User's ref was 2 Medusa Ink overlays stacked, which is why it had 2 colors. **Default is ONE color.**
 - v3 (current): real ink-bleed sim, red, no lightning. Avoid: dark/muddy edge tones, a bright ring hugging the subject, outlines.
+- v4: user wanted **a lot more cuts in the middle**. Added `--center-cuts`, so the dense area near the subject gets heavily cut and the outer bleed stays mostly whole.

@@ -78,6 +78,7 @@ def main():
     ap.add_argument("--flow", type=float, default=1.0, help="how much the ink swirls/curls")
     ap.add_argument("--bleed", type=float, default=1.0, help="fuzzy fibrous edges (0 = clean)")
     ap.add_argument("--cuts", type=float, default=0.15, help="fraction randomly cut away (0-0.9)")
+    ap.add_argument("--center-cuts", type=float, default=0.55, help="extra cuts in the middle (near the subject)")
     ap.add_argument("--glow", type=float, default=0.6)
     ap.add_argument("--opacity", type=float, default=1.0)
     ap.add_argument("--boil", type=int, default=1, help="hold each aura frame N frames (2 = choppy)")
@@ -102,7 +103,7 @@ def main():
     rng = np.random.default_rng(a.seed)
     n_vx, n_vy = (Noise(sh, sw, rng, scales=(20, 40, 80), key_every=10) for _ in range(2))
     n_fine = Noise(sh, sw, rng, scales=(2, 4, 8, 16), key_every=3)
-    n_hole = Noise(sh, sw, rng, scales=(12, 24, 48), key_every=8)
+    n_hole = Noise(sh, sw, rng, scales=(8, 16, 32), key_every=6)
     n_bolt = Noise(sh, sw, rng, scales=(3, 6, 12, 40))
     if "," in a.color:
         tones = np.array([hex2rgb(c) for c in a.color.split(",")], np.float32) / 255
@@ -147,10 +148,11 @@ def main():
             fine = n_fine.get()
             v = D + (fine - .5) * 0.5 * a.bleed * np.clip(D * 4, 0, 1)  # fibrous edge
             cov = np.clip((v - 0.12) / (0.04 + 0.12 * a.bleed), 0, 1)
-            if a.cuts > 0 and (cov > 0).any():
+            if (a.cuts > 0 or a.center_cuts > 0) and (cov > 0).any():
                 holes = n_hole.get()
-                ht = np.quantile(holes[cov > 0], min(a.cuts, 0.9))
-                cov *= np.clip((holes - ht) / 0.04, 0, 1)
+                ht_lo, ht_hi = np.quantile(holes[cov > 0], [min(a.cuts, 0.9), min(a.cuts + a.center_cuts, 0.92)])
+                center = np.clip((D - 0.3) / 0.6, 0, 1)  # dense ink near the subject = middle
+                cov *= np.clip((holes - (ht_lo + (ht_hi - ht_lo) * center)) / 0.04, 0, 1)
             # tone by density: thin ink = deep, dense ink = bright (posterized for the capcut look)
             lv = np.clip((v - 0.12) / 0.95 + (fine - .5) * 0.9, 0, 0.999)  # patchy, no ring
             idx = (lv * len(tones)).astype(int)
