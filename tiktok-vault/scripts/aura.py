@@ -98,7 +98,7 @@ def main():
 
     enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
                             "-r", str(fps), "-i", "-", "-i", a.bg, "-map", "0:v", "-map", "1:a?", "-c:v", "libx264",
-                            "-crf", "17", "-preset", "medium", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+                            "-crf", "11", "-preset", "slow", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
                             "-movflags", "+faststart", a.out], stdin=subprocess.PIPE)
 
     gx, gy = np.meshgrid(np.arange(sw, dtype=np.float32), np.arange(sh, dtype=np.float32))
