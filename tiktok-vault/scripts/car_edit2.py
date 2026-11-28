@@ -158,10 +158,10 @@ for fi in range(NF):
     if nxt is not None and "preview" in nxt["flags"] and tt >= nxt["t0"] - T_PRE:
         p = (tt - (nxt["t0"] - T_PRE)) / T_PRE
         n0 = nxt["fr"][0].astype(np.float32) / 255
-        A = nxt["a"] * min(1, p / .35)
-        tone = np.clip((p - .3) / .5, 0, 1)
-        obj = 1 - (1 - n0) * tone  # white silhouette -> real tone
-        glow = cv2.GaussianBlur(nxt["a"], (0, 0), 18)[..., None] * (1 - tone) * .6 * min(1, p / .35)
+        A = nxt["a"] * min(1, p / cfg.get("preview_pop", 0.08))   # pops in almost instantly (like the ref)
+        tone = np.clip((p - .12) / .7, 0, 1)
+        obj = 1 - (1 - n0) * tone  # pure white cut-out -> fades back to the real tone before the cut
+        glow = cv2.GaussianBlur(nxt["a"], (0, 0), 14)[..., None] * (1 - tone) * .35 * min(1, p / .08)
         img = img + (1 - img) * glow
         img = img * (1 - A[..., None]) + obj * A[..., None]
 
