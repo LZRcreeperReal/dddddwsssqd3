@@ -92,13 +92,15 @@ for k, (src, start, beats, flags) in enumerate(cfg["shots"]):
     t1 = t + dur
     pre = T_INK if "ink" in flags else 0.0
     cy = cfg.get("cy", {}).get(str(k))
-    fr = grab(src, start - pre, pre + (round(t1 * FPS) - round(t * FPS)) / FPS, grade="aura" not in flags, cy=cy)
+    jump = "jump" in flags.split()
+    extra = cfg.get("jump_skip", 0.8) * (dur / BEAT + 2) if jump else 0.0
+    fr = grab(src, start - pre, pre + (round(t1 * FPS) - round(t * FPS)) / FPS + extra, grade="aura" not in flags, cy=cy)
     a = None
     if "ink" in flags:
         a = cutout(fr[int(pre * FPS * .5)], f"{os.path.basename(src)}_{start - pre / 2:.2f}")
     if "preview" in flags:
         a = cutout(fr[0], f"{os.path.basename(src)}_{start:.2f}")
-    shots.append(dict(fr=fr, t0=t, t1=t1, pre=pre, flags=flags, a=a))
+    shots.append(dict(fr=fr, t0=t, t1=t1, pre=pre, flags=flags, a=a, jump=jump))
     t = t1
 DUR = t
 NF = int(round(DUR * FPS))
@@ -115,8 +117,15 @@ noise_lo = [smooth_noise(90, s) for s in range(3)]
 noise_hi = smooth_noise(6, 11)
 
 
+BEAT0 = cfg.get("beat0", intro % BEAT)  # song beat grid phase
+
+
 def frame_of(s, tt):
-    i = int(round((tt - s["t0"] + s["pre"]) * FPS))
+    st = tt - s["t0"] + s["pre"]
+    if s.get("jump"):  # jump cut: on every song beat the clip skips ahead jump_skip seconds
+        nb = int(np.floor((tt - BEAT0) / BEAT + 1e-6)) - int(np.floor((s["t0"] - BEAT0) / BEAT + 1e-6))
+        st += cfg.get("jump_skip", 0.8) * max(nb, 0)
+    i = int(round(st * FPS))
     return s["fr"][min(max(i, 0), len(s["fr"]) - 1)].astype(np.float32) / 255
 
 

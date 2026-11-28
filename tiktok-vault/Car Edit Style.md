@@ -7,7 +7,9 @@ Ref: user's own edit, "high quality greyscale koenigsegg edit", Mountain King Fu
 - **Quality matters a lot**: decode with lanczos + light hqdn3d + unsharp, render aura intermediates at crf 6–11, final x264 crf 12 slow tune film, 320k audio. Don't double-encode at low quality, and don't blur frames except for intended whips
 - **Aggressive + clean** = fast beat cuts, but **NO screen shake, NO zoom-in/zoom punches** (full frame, framed like the reference edits). Flash on the drop only
 - **Aura is per-video**: the user said forget it for the hypercars edit. Ask/decide per edit, not by default
-- **Format: 16:9 LANDSCAPE crop** like the user's example (their edit is 1280x720). Crop a band out of the vertical clips, centred on the car (`size: [1920,1080]`, auto subject centre via cutout)
+- **Format: RAW full frame.** NO cropping or zooming of clips. A landscape crop out of vertical clips = zoomed in and rejected ("they aren't raw", bad tracking). Vertical clips → vertical 1080x1920 output. Only make landscape if the source footage is landscape
+- **Cut on EVERY beat after the drop** (new clip each beat)
+- **Intro jump cuts**: on every beat in the intro the same clip skips ahead 0.8s (`jump` flag, `jump_skip` 0.8, `beat0` = song beat phase) and plays normally between beats
 - **User HATES the ink/aura transition**. Don't use it. Straight beat cuts + the preview transitions (their last 2) only
 - **Rev clip**: one shot should be a car revving, **rev WAY louder than the song** (boost the rev to ~-8 dB RMS, duck the song to ~0.38 under it). Pick a sustained pull, not short blips: hypercarsoflondon f12.mp4 9.7–12.4s = V12 pull, with its audio carrying on under the next beat cuts (`rev` flag in car_edit2: ~2.3s of the clip's audio, highpassed, faded). Find revs by RMS spikes + broadband harmonic blips in the spectrogram (hypercarsoflondon huracan.mp4 ~14.5s = double blip)
 - **H7 logo** (`Assets/` → user's logo png, chrome H7 with santa hat on black): fades and zooms in over the intro shot, holds, fades out right as the drop hits
