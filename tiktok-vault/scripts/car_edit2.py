@@ -16,7 +16,7 @@ cfg = json.load(open(sys.argv[1]))
 W, H, FPS = 1080, 1920, 30
 BEAT = 60 / cfg["bpm"]
 GRADE = cfg.get("grade", "hue=s=0,curves=preset=medium_contrast")
-CLEAN = "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,hqdn3d=1:1:2:2,unsharp=5:5:0.8:3:3:0"
+CLEAN = "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,unsharp=5:5:0.45:3:3:0"
 T_INK, T_PRE = cfg.get("t_ink", 0.42), cfg.get("t_preview", 0.45)
 CACHE = cfg.get("cache", os.path.dirname(os.path.abspath(cfg["out"])) + "/cache")
 os.makedirs(CACHE, exist_ok=True)
@@ -104,7 +104,7 @@ def frame_of(s, tt):
 
 
 enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-                        "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-crf", "12", "-preset", "slow", "-tune", "film",
+                        "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-crf", "13", "-preset", "slow", "-tune", "film",
                         "-pix_fmt", "yuv420p", cfg["out"] + ".v.mp4"], stdin=subprocess.PIPE)
 for fi in range(NF):
     tt = fi / FPS
