@@ -8,6 +8,7 @@ Claude's memory for TikTok edits. Read this first before any edit.
 - `Assets/` — overlays, SFX, LUTs, PNGs
 - `scripts/` — python effect scripts (aura.py)
 - [[Phonk Generator]]: turn songs into phonk / brazilian funk
+- [[Car Edit Style]]: how the user edits (H7 style) + the edit builder
 
 ## Rules
 - Output: 1080x1920, 30fps, H.264 + AAC, `-movflags +faststart`

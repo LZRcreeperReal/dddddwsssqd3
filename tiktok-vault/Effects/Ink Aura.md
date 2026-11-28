@@ -22,8 +22,9 @@ python3 scripts/aura.py --bg clip.mp4 --sticker cut.png --out out.mp4 --color "#
 | `--spread` | how far the ink bleeds out | 1.0 |
 | `--flow` | how much it swirls/curls | 1.0 |
 | `--bleed` | fuzzy fibrous edges (0 = clean) | 1.0 |
-| `--cuts` | random cuts everywhere | 0.15 |
-| `--center-cuts` | extra cuts in the middle (near the subject) | 0.55 |
+| `--cuts` | random cuts everywhere | 0.08 |
+| `--center-cuts` | extra cuts in the middle (near the subject) | 0 |
+| `--layers` | **stacked colors outer→inner** `color:spread`, e.g. `"#ff1a1a:1,#8a2be2:.7,#ff7ad9:.45"` | off |
 | `--glow` | glow strength | 0.6 |
 | `--boil` | hold frames (2 = choppy) | 1 |
 | `--bolts` | lightning, **off by default** (user doesn't want it) | 0 |
@@ -44,3 +45,5 @@ Ink density field: each frame it's advected by a smooth noise flow plus an outwa
 - BMW E36 photo (Aatomotion, CC BY, found via the Openverse API). Flickr direct links are blocked from this container, so use `https://api.openverse.org/v1/images/<id>/thumb/?full_size=true`.
 - Steps: cutout via rembg → place on a 1080x1920 canvas with a blurred, darkened copy as the bg → aura `--start 1.5` synced to the phonk drop → flash + shake + slight zoom at the drop.
 - Free car photos: Openverse `?q=drift car&license=cc0,pdm,by`.
+- v5 (current): user wants it **filled fully inside** (center cuts now default 0) plus **layered tinier auras inside in different colors**. Added `--layers`. Every layer gets the same swirl, and inner layers get more ragged edges. Otherwise a small inner layer turns into a thin uniform rim (= outline, which the user hates). Inner spread ≥ .45. Default look: red .1 / purple .7 / pink .45.
+- Moving clip: cut out each frame with rembg `isnet-general-use` (~1s/frame CPU), then `--sticker "dir/%04d.png"`. Pick shots with ONE isolated car, or the cutout grabs background cars too.
