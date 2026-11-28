@@ -39,3 +39,8 @@ Ink density field: each frame it's advected by a smooth noise flow plus an outwa
 - User's ref was 2 Medusa Ink overlays stacked, which is why it had 2 colors. **Default is ONE color.**
 - v3 (current): real ink-bleed sim, red, no lightning. Avoid: dark/muddy edge tones, a bright ring hugging the subject, outlines.
 - v4: user wanted **a lot more cuts in the middle**. Added `--center-cuts`, so the dense area near the subject gets heavily cut and the outer bleed stays mostly whole.
+
+## Example: car demo
+- BMW E36 photo (Aatomotion, CC BY, found via the Openverse API). Flickr direct links are blocked from this container, so use `https://api.openverse.org/v1/images/<id>/thumb/?full_size=true`.
+- Steps: cutout via rembg → place on a 1080x1920 canvas with a blurred, darkened copy as the bg → aura `--start 1.5` synced to the phonk drop → flash + shake + slight zoom at the drop.
+- Free car photos: Openverse `?q=drift car&license=cc0,pdm,by`.
