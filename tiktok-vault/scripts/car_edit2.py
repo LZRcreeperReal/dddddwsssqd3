@@ -130,7 +130,7 @@ def frame_of(s, tt):
 
 
 enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-                        "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-crf", "13", "-preset", "slow", "-tune", "film",
+                        "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-crf", str(cfg.get("crf", 10)), "-preset", "slower", "-tune", "film", "-profile:v", "high",
                         "-pix_fmt", "yuv420p", cfg["out"] + ".v.mp4"], stdin=subprocess.PIPE)
 for fi in range(NF):
     tt = fi / FPS
@@ -176,8 +176,15 @@ for fi in range(NF):
             sx, sy, rot = rng.uniform(-1, 1) * 26 * q, rng.uniform(-1, 1) * 26 * q, rng.uniform(-1, 1) * 1.6 * q
         M = cv2.getRotationMatrix2D((W / 2, H / 2), rot, z); M[0, 2] += sx; M[1, 2] += sy
         img = cv2.warpAffine(img, M, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
-    if cfg.get("flash_drop", True) and abs(tt - intro) < .1 and tt >= intro - 1e-6:
-        img = img + (1 - img) * 0.8 * (1 - abs(tt - intro) / .1)
+    # ---- flashes: on the drop, and (flash_every=2) on the in-between beats where a cut used to be
+    if tt >= intro - 1.5 / FPS:
+        kb = int(round((tt - intro) / BEAT)); dt = tt - (intro + kb * BEAT)
+        fe = cfg.get("flash_every", 0)
+        hit = (kb == 0 and cfg.get("flash_drop", True)) or (fe and kb > 0 and kb % fe == fe // 2 and kb % fe != 0)
+        if hit and -1.0 / FPS <= dt < 0.2:
+            peak = 0.85 if kb == 0 else cfg.get("flash_amt", 0.7)
+            amt = peak * (0.5 if dt < 0 else np.exp(-dt / cfg.get("flash_decay", 0.055)))
+            img = img + (1 - img) * amt
     # ---- logo fade + zoom (intro)
     if L_IN <= tt < L_OUT:
         p = (tt - L_IN) / (L_OUT - L_IN)

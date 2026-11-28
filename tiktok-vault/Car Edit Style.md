@@ -8,7 +8,9 @@ Ref: user's own edit, "high quality greyscale koenigsegg edit", Mountain King Fu
 - **Aggressive + clean** = fast beat cuts, but **NO screen shake, NO zoom-in/zoom punches** (full frame, framed like the reference edits). Flash on the drop only
 - **Aura is per-video**: the user said forget it for the hypercars edit. Ask/decide per edit, not by default
 - **Format: RAW full frame.** NO cropping or zooming of clips. A landscape crop out of vertical clips = zoomed in and rejected ("they aren't raw", bad tracking). Vertical clips → vertical 1080x1920 output. Only make landscape if the source footage is landscape
-- **Cut on EVERY beat after the drop** (new clip each beat)
+- **Clip change every OTHER beat** after the drop, with a **white flash on the in-between beat** (where a cut would have been): `flash_every: 2`
+- **Beat sync**: never trust librosa's tempo alone. Fit the grid with least squares on the strong onsets after the drop (tempo + phase), then check the residuals (±8ms) and verify the rendered cuts/flashes against the grid. User sound (Brant•editzzzz™ "Original Sound") = drop 4.4047s, 170.165 BPM, loops at ~11.3s
+- **Max quality**: x264 crf 10 preset slower, high profile, tune film, 320k AAC, no scaling when the source is already 1080x1920
 - **Intro jump cuts**: on every beat in the intro the same clip skips ahead 0.8s (`jump` flag, `jump_skip` 0.8, `beat0` = song beat phase) and plays normally between beats
 - **User HATES the ink/aura transition**. Don't use it. Straight beat cuts + the preview transitions (their last 2) only
 - **Rev clip**: one shot should be a car revving, **rev WAY louder than the song** (boost the rev to ~-8 dB RMS, duck the song to ~0.38 under it). Pick a sustained pull, not short blips: hypercarsoflondon f12.mp4 9.7–12.4s = V12 pull, with its audio carrying on under the next beat cuts (`rev` flag in car_edit2: ~2.3s of the clip's audio, highpassed, faded). Find revs by RMS spikes + broadband harmonic blips in the spectrogram (hypercarsoflondon huracan.mp4 ~14.5s = double blip)
