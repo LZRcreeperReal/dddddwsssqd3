@@ -139,19 +139,19 @@ for fi in range(NF):
         img = img + (1 - img) * glow
         img = img * (1 - A[..., None]) + obj * A[..., None]
 
-    # ---- incoming hit: zoom punch + shake on every cut after the intro, beat pulses
-    if tt >= intro - 1e-6:
-        z = 1 + 0.12 * np.exp(-lt / 0.09)
-        bl = ((tt - intro) % BEAT)
-        z += 0.035 * np.exp(-bl / 0.07)  # pulse on every beat
+    # ---- incoming hit: optional zoom punch / shake / beat pulse (off = clean full frame like the refs)
+    if tt >= intro - 1e-6 and (cfg.get("zoom", False) or cfg.get("shake", False)):
+        z = 1.0
+        if cfg.get("zoom", False):
+            z = 1 + 0.12 * np.exp(-lt / 0.09) + 0.035 * np.exp(-((tt - intro) % BEAT) / 0.07)
         sx = sy = rot = 0
-        if lt < 0.16:
+        if cfg.get("shake", False) and lt < 0.16:
             q = (0.16 - lt) / 0.16 * (1.8 if abs(s["t0"] - intro) < 1e-3 else 1)
             sx, sy, rot = rng.uniform(-1, 1) * 26 * q, rng.uniform(-1, 1) * 26 * q, rng.uniform(-1, 1) * 1.6 * q
         M = cv2.getRotationMatrix2D((W / 2, H / 2), rot, z); M[0, 2] += sx; M[1, 2] += sy
         img = cv2.warpAffine(img, M, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
-        if abs(tt - intro) < .1:  # flash on the drop
-            img = img + (1 - img) * 0.8 * (1 - abs(tt - intro) / .1)
+    if cfg.get("flash_drop", True) and abs(tt - intro) < .1 and tt >= intro - 1e-6:
+        img = img + (1 - img) * 0.8 * (1 - abs(tt - intro) / .1)
     # ---- logo fade + zoom (intro)
     if L_IN <= tt < L_OUT:
         p = (tt - L_IN) / (L_OUT - L_IN)
@@ -168,8 +168,19 @@ for fi in range(NF):
     enc.stdin.write((np.clip(img, 0, 1) * 255 + .5).astype(np.uint8).tobytes())
 enc.stdin.close(); enc.wait()
 
-subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", cfg["out"] + ".v.mp4", "-i", cfg["song"],
-                "-filter_complex", f"[1:a]atrim=0:{DUR},asetpts=PTS-STARTPTS,afade=t=out:st={DUR - .3}:d=0.3[a]",
+revs = [(sh, c) for sh, c in zip(shots, cfg["shots"]) if "rev" in c[3]]
+inputs = ["-i", cfg["out"] + ".v.mp4", "-i", cfg["song"]]
+fc = f"[1:a]atrim=0:{DUR},asetpts=PTS-STARTPTS,volume={cfg.get('song_gain', 1.0)}[s0];"
+mixes = ["[s0]"]
+for j, (sh, c) in enumerate(revs):  # car audio keeps playing under the next cuts
+    rd = cfg.get("rev_dur", 2.3)
+    inputs += ["-ss", f"{c[1]:.3f}", "-t", f"{rd:.3f}", "-i", c[0]]
+    fc += (f"[{2 + j}:a]aresample=48000,highpass=f=35,volume={cfg.get('rev_gain', 1.0)},"
+           f"afade=t=out:st={rd - .5}:d=0.5,adelay={int(sh['t0'] * 1000)}|{int(sh['t0'] * 1000)}[r{j}];")
+    mixes.append(f"[r{j}]")
+fc += (f"{''.join(mixes)}amix=inputs={len(mixes)}:normalize=0:duration=first,"
+       f"alimiter=limit=0.95,afade=t=out:st={DUR - .3}:d=0.3[a]")
+subprocess.run(["ffmpeg", "-v", "error", "-y", *inputs, "-filter_complex", fc,
                 "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "320k", "-shortest",
                 "-movflags", "+faststart", cfg["out"]], check=True)
 os.remove(cfg["out"] + ".v.mp4")

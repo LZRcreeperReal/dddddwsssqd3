@@ -5,7 +5,9 @@ Ref: user's own edit, "high quality greyscale koenigsegg edit", Mountain King Fu
 - ~~Intro = review clip~~ → user changed this: **NO people in any clip** (no reviewers, hands, drivers or pedestrians clearly visible) and **NO captions/burned-in text**
 - **Footage = raw supercars driving on the road** (spotting style, like the example edits). Best raw source: TikTok **@hypercarsoflondon** (raw London/Monaco spotting). Only use clips TikTok serves in **1080p**: check with `yt-dlp -S res,br --print '%(height)s'`, since many are only 540/720p
 - **Quality matters a lot**: decode with lanczos + light hqdn3d + unsharp, render aura intermediates at crf 6–11, final x264 crf 12 slow tune film, 320k audio. Don't double-encode at low quality, and don't blur frames except for intended whips
-- **Aggressive + clean**: cuts on every beat in the middle, zoom punch + shake + small rotation on every cut, beat pulses, big flash + extra shake on the drop
+- **Aggressive + clean** = fast beat cuts, but **NO screen shake, NO zoom-in/zoom punches** (full frame, framed like the reference edits). Flash on the drop only
+- **Aura is per-video**: the user said forget it for the hypercars edit. Ask/decide per edit, not by default
+- **Rev clip**: one shot should be a car revving, with its audio carrying on under the next beat cuts (`rev` flag in car_edit2: ~2.3s of the clip's audio, highpassed, faded). Find revs by RMS spikes + broadband harmonic blips in the spectrogram (hypercarsoflondon huracan.mp4 ~14.5s = double blip)
 - **H7 logo** (`Assets/` → user's logo png, chrome H7 with santa hat on black): fades and zooms in over the intro shot, holds, fades out right as the drop hits
 - **Drop:** hard cut on the drop with a flash, then cuts every 2 beats, zoom punch + shake + motion blur on every cut, flash on each bar downbeat
 - Aura hero shots on the first bar of the drop and the last bar
