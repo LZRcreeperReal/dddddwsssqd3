@@ -13,18 +13,34 @@ import json, os, subprocess, sys
 import numpy as np, cv2
 
 cfg = json.load(open(sys.argv[1]))
-W, H, FPS = 1080, 1920, 30
+W, H = cfg.get("size", [1080, 1920])
+FPS = 30
 BEAT = 60 / cfg["bpm"]
 GRADE = cfg.get("grade", "hue=s=0,curves=preset=medium_contrast")
-CLEAN = "scale=1080:1920:force_original_aspect_ratio=increase:flags=lanczos,crop=1080:1920,unsharp=5:5:0.45:3:3:0"
+SHARP = "unsharp=5:5:0.45:3:3:0"
 T_INK, T_PRE = cfg.get("t_ink", 0.42), cfg.get("t_preview", 0.45)
 CACHE = cfg.get("cache", os.path.dirname(os.path.abspath(cfg["out"])) + "/cache")
 os.makedirs(CACHE, exist_ok=True)
 rng = np.random.default_rng(5)
 
 
-def grab(src, start, dur, grade=True):
-    vf = f"fps={FPS}," + CLEAN + ("," + GRADE if grade else "")
+def subject_cy(src, t):
+    """vertical centre (0-1) of the car in a vertical clip, for landscape crops"""
+    p = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(t, 0):.3f}", "-i", src, "-frames:v", "1",
+                        "-vf", "scale=540:960", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True)
+    img = np.frombuffer(p.stdout, np.uint8).reshape(960, 540, 3)
+    a = cutout(img, f"cy_{os.path.basename(src)}_{t:.2f}", size=(540, 960))
+    ys = np.where(a.max(1) > .5)[0]
+    return float((ys.min() + ys.max()) / 2 / 960) if len(ys) else 0.5
+
+
+def grab(src, start, dur, grade=True, cy=None):
+    if W > H:  # landscape crop out of a vertical clip, band centred on the car
+        cy = subject_cy(src, start + dur / 2) if cy is None else cy
+        geo = f"scale={W}:-2:flags=lanczos,crop={W}:{H}:0:'min(max(ih*{cy:.3f}-{H}/2,0),ih-{H})'"
+    else:
+        geo = f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}"
+    vf = f"fps={FPS},{geo},{SHARP}" + ("," + GRADE if grade else "")
     p = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(start, 0):.3f}", "-i", src, "-t", f"{dur + .3:.3f}",
                         "-an", "-vf", vf, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True)
     a = np.frombuffer(p.stdout, np.uint8).reshape(-1, H, W, 3)
@@ -35,7 +51,7 @@ def grab(src, start, dur, grade=True):
 
 
 _sess = None
-def cutout(img_u8, key):
+def cutout(img_u8, key, size=None):
     """alpha (float 0-1) of the main subject, cached"""
     global _sess
     fn = f"{CACHE}/{key}.png"
@@ -47,7 +63,7 @@ def cutout(img_u8, key):
         im = np.array(remove(Image.fromarray(img_u8), session=_sess)); im[..., 3] = biggest(im[..., 3])
         Image.fromarray(im).save(fn)
     a = cv2.imread(fn, cv2.IMREAD_UNCHANGED)[..., 3].astype(np.float32) / 255
-    return cv2.resize(a, (W, H))
+    return cv2.resize(a, size or (W, H))
 
 
 def smooth_noise(scale, seed):
@@ -75,7 +91,8 @@ for k, (src, start, beats, flags) in enumerate(cfg["shots"]):
     dur = beats * BEAT if beats > 0 else -beats  # negative beats = seconds
     t1 = t + dur
     pre = T_INK if "ink" in flags else 0.0
-    fr = grab(src, start - pre, pre + (round(t1 * FPS) - round(t * FPS)) / FPS, grade="aura" not in flags)
+    cy = cfg.get("cy", {}).get(str(k))
+    fr = grab(src, start - pre, pre + (round(t1 * FPS) - round(t * FPS)) / FPS, grade="aura" not in flags, cy=cy)
     a = None
     if "ink" in flags:
         a = cutout(fr[int(pre * FPS * .5)], f"{os.path.basename(src)}_{start - pre / 2:.2f}")
@@ -90,7 +107,7 @@ NF = int(round(DUR * FPS))
 logo = cv2.cvtColor(cv2.imread(cfg["logo"]), cv2.COLOR_BGR2RGB).astype(np.float32) / 255
 la = np.clip((logo.max(2) - 0.06) / 0.25, 0, 1)
 lg = np.repeat(logo.mean(2, keepdims=True), 3, 2) if cfg.get("logo_grey", True) else logo
-LS = int(W * .8)
+LS = int(min(W, H) * cfg.get("logo_scale", .8))
 logo_rgb, logo_a = cv2.resize(lg, (LS, LS), interpolation=cv2.INTER_AREA), cv2.resize(la, (LS, LS), interpolation=cv2.INTER_AREA)
 L_IN, L_OUT = cfg.get("logo_in", 0.5), cfg.get("logo_out", 2.1)
 
@@ -168,15 +185,24 @@ for fi in range(NF):
     enc.stdin.write((np.clip(img, 0, 1) * 255 + .5).astype(np.uint8).tobytes())
 enc.stdin.close(); enc.wait()
 
-revs = [(sh, c) for sh, c in zip(shots, cfg["shots"]) if "rev" in c[3]]
+revs = [(sh, c) for sh, c in zip(shots, cfg["shots"]) if "rev" in c[3].split()]
 inputs = ["-i", cfg["out"] + ".v.mp4", "-i", cfg["song"]]
-fc = f"[1:a]atrim=0:{DUR},asetpts=PTS-STARTPTS,volume={cfg.get('song_gain', 1.0)}[s0];"
+rd = cfg.get("rev_dur", 2.3)
+duck = "+".join(f"between(t,{sh['t0']:.3f},{sh['t0'] + rd - .3:.3f})" for sh, _ in revs) or "0"
+fc = (f"[1:a]atrim=0:{DUR},asetpts=PTS-STARTPTS,"
+      f"volume='{cfg.get('song_gain', 1.0)}*if({duck},{cfg.get('rev_duck', .55)},1)':eval=frame[s0];")
 mixes = ["[s0]"]
-for j, (sh, c) in enumerate(revs):  # car audio keeps playing under the next cuts
-    rd = cfg.get("rev_dur", 2.3)
-    inputs += ["-ss", f"{c[1]:.3f}", "-t", f"{rd:.3f}", "-i", c[0]]
-    fc += (f"[{2 + j}:a]aresample=48000,highpass=f=35,volume={cfg.get('rev_gain', 1.0)},"
-           f"afade=t=out:st={rd - .5}:d=0.5,adelay={int(sh['t0'] * 1000)}|{int(sh['t0'] * 1000)}[r{j}];")
+for j, (sh, c) in enumerate(revs):  # car audio keeps playing under the next cuts, loud
+    rs = c[1] + cfg.get("rev_offset", 0.0)
+    inputs += ["-ss", f"{rs:.3f}", "-t", f"{rd:.3f}", "-i", c[0]]
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{rs:.3f}", "-t", f"{rd:.3f}", "-i", c[0], "-vn", "-ac", "1",
+                          "-ar", "22050", "-af", "highpass=f=30", "-f", "f32le", "-"], capture_output=True).stdout
+    x = np.frombuffer(raw, np.float32)
+    rms_db = 20 * np.log10(np.sqrt(np.mean(x ** 2)) + 1e-9)
+    g = 10 ** ((cfg.get("rev_target_db", -9.0) - rms_db) / 20)  # boost the rev to a fixed loud level
+    print(f"rev {os.path.basename(c[0])}: rms {rms_db:.1f} dB -> gain x{g:.1f}")
+    fc += (f"[{2 + j}:a]aresample=48000,highpass=f=30,volume={g:.3f},alimiter=limit=0.97,"
+           f"afade=t=in:d=0.02,afade=t=out:st={rd - .45}:d=0.45,adelay={int(sh['t0'] * 1000)}|{int(sh['t0'] * 1000)}[r{j}];")
     mixes.append(f"[r{j}]")
 fc += (f"{''.join(mixes)}amix=inputs={len(mixes)}:normalize=0:duration=first,"
        f"alimiter=limit=0.95,afade=t=out:st={DUR - .3}:d=0.3[a]")
